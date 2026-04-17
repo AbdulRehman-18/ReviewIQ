@@ -1,6 +1,7 @@
 import { Inbox } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
 import { ModerationCard, type FlaggedReview, type SentimentLabel } from "./ModerationCard";
 import { ModerationActions } from "./ModerationActions";
 
@@ -58,28 +59,45 @@ export function ModerationQueue({
 }: ModerationQueueProps) {
   if (reviews.length === 0) {
     return (
-      <Card className="flex flex-col items-center justify-center py-16 text-center gap-3">
-        <Inbox className="w-10 h-10 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">Queue is empty</p>
-        <p className="text-xs text-muted-foreground/70">All flagged reviews have been reviewed.</p>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="flex flex-col items-center justify-center py-16 text-center gap-3">
+          <Inbox className="w-10 h-10 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-muted-foreground">Queue is empty</p>
+          <p className="text-xs text-muted-foreground/70">All flagged reviews have been reviewed.</p>
+        </Card>
+      </motion.div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {reviews.map((review, i) => (
-        <Card key={review.id} className="overflow-hidden">
-          <ModerationCard review={review} index={i} />
-          <Separator />
-          <ModerationActions
-            review={review}
-            onApprove={onApprove}
-            onReject={onReject}
-            onOverride={onOverride}
-          />
-        </Card>
-      ))}
+      <AnimatePresence mode="popLayout">
+        {reviews.map((review) => (
+          <motion.div
+            key={review.id}
+            layout
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: 60, transition: { duration: 0.22, ease: "easeIn" } }}
+            transition={{ duration: 0.25 }}
+          >
+            <Card className="overflow-hidden">
+              <ModerationCard review={review} />
+              <Separator />
+              <ModerationActions
+                review={review}
+                onApprove={onApprove}
+                onReject={onReject}
+                onOverride={onOverride}
+              />
+            </Card>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

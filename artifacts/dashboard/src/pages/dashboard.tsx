@@ -174,8 +174,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Recommendations — full-width section */}
-      <RecommendationsPanel />
+      {/* Recommendations — driven by real emerging issues, falls back to dummy data */}
+      <RecommendationsPanel issues={issues ?? undefined} />
     </div>
   );
 }

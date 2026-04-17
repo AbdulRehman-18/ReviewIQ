@@ -3,31 +3,35 @@ import { ShieldCheck, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import { ModerationQueue, DUMMY_FLAGGED_REVIEWS } from "@/components/moderation/ModerationQueue";
+import { ModerationQueue } from "@/components/moderation/ModerationQueue";
+import { useModerationQueue } from "@/hooks/use-moderation";
 import type { FlaggedReview } from "@/components/moderation/ModerationCard";
 
 type FilterTab = "all" | "sarcasm" | "ambiguity";
 
 export default function ModerationPage() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
+  const { queue, approve, reject, override } = useModerationQueue();
 
   const stats = useMemo(() => {
-    const total     = DUMMY_FLAGGED_REVIEWS.length;
-    const sarcasm   = DUMMY_FLAGGED_REVIEWS.filter((r) => r.flagReason === "sarcasm").length;
-    const ambiguous = DUMMY_FLAGGED_REVIEWS.filter((r) => r.flagReason === "ambiguity").length;
-    const avgConf   = DUMMY_FLAGGED_REVIEWS.reduce((acc, r) => acc + r.aiGuess.confidence, 0) / total;
+    const total     = queue.length;
+    const sarcasm   = queue.filter((r) => r.flagReason === "sarcasm").length;
+    const ambiguous = queue.filter((r) => r.flagReason === "ambiguity").length;
+    const avgConf   = total > 0
+      ? queue.reduce((acc, r) => acc + r.aiGuess.confidence, 0) / total
+      : 0;
     return { total, sarcasm, ambiguous, avgConf };
-  }, []);
+  }, [queue]);
 
   const filtered = useMemo<FlaggedReview[]>(() => {
-    if (activeFilter === "all") return DUMMY_FLAGGED_REVIEWS;
-    return DUMMY_FLAGGED_REVIEWS.filter((r) => r.flagReason === activeFilter);
-  }, [activeFilter]);
+    if (activeFilter === "all") return queue;
+    return queue.filter((r) => r.flagReason === activeFilter);
+  }, [activeFilter, queue]);
 
   const tabCount = (filter: FilterTab) =>
     filter === "all"
-      ? DUMMY_FLAGGED_REVIEWS.length
-      : DUMMY_FLAGGED_REVIEWS.filter((r) => r.flagReason === filter).length;
+      ? queue.length
+      : queue.filter((r) => r.flagReason === filter).length;
 
   return (
     <div className="space-y-6">
@@ -42,12 +46,14 @@ export default function ModerationPage() {
             Review AI-flagged items — sarcasm and ambiguous sentiment detected by the pipeline.
           </p>
         </div>
-        <Badge variant="secondary" className="shrink-0 mt-1">
-          {stats.total} pending
-        </Badge>
+        {stats.total > 0 && (
+          <Badge variant="secondary" className="shrink-0 mt-1">
+            {stats.total} pending
+          </Badge>
+        )}
       </div>
 
-      {/* Stats row */}
+      {/* Live stats — react to queue changes as items are approved/rejected */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard
           label="Total Flagged"
@@ -60,20 +66,20 @@ export default function ModerationPage() {
         <MetricCard
           label="Sarcasm Flags"
           value={String(stats.sarcasm)}
-          change={`${Math.round((stats.sarcasm / stats.total) * 100)}% of queue`}
+          change={stats.total > 0 ? `${Math.round((stats.sarcasm / stats.total) * 100)}% of queue` : "—"}
           trend="down"
           index={1}
         />
         <MetricCard
           label="Ambiguous Flags"
           value={String(stats.ambiguous)}
-          change={`${Math.round((stats.ambiguous / stats.total) * 100)}% of queue`}
+          change={stats.total > 0 ? `${Math.round((stats.ambiguous / stats.total) * 100)}% of queue` : "—"}
           trend="neutral"
           index={2}
         />
         <MetricCard
           label="Avg AI Confidence"
-          value={`${Math.round(stats.avgConf * 100)}%`}
+          value={stats.total > 0 ? `${Math.round(stats.avgConf * 100)}%` : "—"}
           change="Below threshold"
           trend="down"
           icon={CheckCircle}
@@ -81,9 +87,9 @@ export default function ModerationPage() {
         />
       </div>
 
-      {/* Filter tabs + queue */}
+      {/* Filter tabs + live queue */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Tabs value={activeFilter} onValueChange={(v) => setActiveFilter(v as FilterTab)}>
             <TabsList>
               <TabsTrigger value="all">
@@ -113,7 +119,12 @@ export default function ModerationPage() {
           </div>
         </div>
 
-        <ModerationQueue reviews={filtered} />
+        <ModerationQueue
+          reviews={filtered}
+          onApprove={approve}
+          onReject={reject}
+          onOverride={override}
+        />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -15,18 +16,31 @@ import ModerationPage from "@/pages/moderation";
 
 const queryClient = new QueryClient();
 
+const PAGE_TRANSITION = {
+  initial:    { opacity: 0, y: 8  },
+  animate:    { opacity: 1, y: 0  },
+  exit:       { opacity: 0, y: -8 },
+  transition: { duration: 0.18, ease: "easeInOut" as const },
+};
+
 function Router() {
+  const [location] = useLocation();
+
   return (
     <AppLayout>
-      <Switch>
-        <Route path="/" component={DashboardPage} />
-        <Route path="/reviews" component={ReviewsPage} />
-        <Route path="/trends" component={TrendsPage} />
-        <Route path="/ingest" component={IngestPage} />
-        <Route path="/compare" component={ComparePage} />
-        <Route path="/moderation" component={ModerationPage} />
-        <Route component={NotFound} />
-      </Switch>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={location} {...PAGE_TRANSITION} className="h-full">
+          <Switch>
+            <Route path="/"           component={DashboardPage}  />
+            <Route path="/reviews"    component={ReviewsPage}    />
+            <Route path="/trends"     component={TrendsPage}     />
+            <Route path="/ingest"     component={IngestPage}     />
+            <Route path="/compare"    component={ComparePage}    />
+            <Route path="/moderation" component={ModerationPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </motion.div>
+      </AnimatePresence>
     </AppLayout>
   );
 }
