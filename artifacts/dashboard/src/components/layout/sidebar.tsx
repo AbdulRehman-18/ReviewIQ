@@ -4,12 +4,8 @@ import {
   MessageSquare,
   Globe,
   Trophy,
-  Tag,
-  Users,
-  Briefcase,
-  CreditCard,
-  Layers,
-  Key,
+  TrendingUp,
+  Upload,
   Search,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -31,18 +27,13 @@ export function Sidebar() {
       title: "Preferences",
       items: [
         { title: "Competitors", href: "/compare", icon: Trophy, badge: "2" },
-        { title: "Tags", href: "#", icon: Tag },
-        { title: "Trends", href: "/trends", icon: Layers },
+        { title: "Trends", href: "/trends", icon: TrendingUp },
       ],
     },
     {
       title: "Settings",
       items: [
-        { title: "People", href: "#", icon: Users },
-        { title: "Project", href: "#", icon: Briefcase },
-        { title: "Billing", href: "#", icon: CreditCard },
-        { title: "Ingestion", href: "/ingest", icon: Layers },
-        { title: "API Keys", href: "#", icon: Key, badge: "Beta", badgeVariant: "secondary" },
+        { title: "Ingestion", href: "/ingest", icon: Upload },
       ],
     },
   ];
@@ -51,7 +42,7 @@ export function Sidebar() {
     <div className="w-64 border-r border-border bg-sidebar flex flex-col">
       <div className="p-4 flex items-center gap-2">
         <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-          <Layers className="w-4 h-4 text-primary-foreground" />
+          <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
         </div>
         <span className="font-bold text-sidebar-foreground">ReviewIQ</span>
       </div>
@@ -92,7 +83,7 @@ export function Sidebar() {
                         {item.title}
                       </div>
                       {item.badge && (
-                        <Badge variant={item.badgeVariant as any || "default"} className="h-5 px-1.5 text-[10px]">
+                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary text-white border-0">
                           {item.badge}
                         </Badge>
                       )}
