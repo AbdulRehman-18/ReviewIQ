@@ -4,15 +4,20 @@ import { useGetProductTrends, getGetProductTrendsQueryKey } from "@workspace/api
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { useState } from "react";
 
 export default function TrendsPage() {
   const { selectedProductId } = useProduct();
   const { data: ingestData } = useIngest();
+  const [windowSize, setWindowSize] = useState("25");
   const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
 
-  const { data: apiData, isLoading } = useGetProductTrends(selectedProductId!, {}, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductTrendsQueryKey(selectedProductId!, {}) } });
+  const { data: apiData, isLoading } = useGetProductTrends(selectedProductId!, { window: parseInt(windowSize) }, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductTrendsQueryKey(selectedProductId!, { window: parseInt(windowSize) }) } });
 
-  const trends = apiData || ingestData.trends;
+  let trends = apiData;
+  if (!trends && ingestData?.trends) {
+    trends = ingestData.trends.slice(-parseInt(windowSize));
+  }
 
   return (
     <div className="space-y-6">
@@ -21,7 +26,7 @@ export default function TrendsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Trends</h1>
           <p className="text-muted-foreground">Track feature sentiment over time.</p>
         </div>
-        <Select defaultValue="25">
+        <Select defaultValue={windowSize} onValueChange={setWindowSize}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Window Size" />
           </SelectTrigger>

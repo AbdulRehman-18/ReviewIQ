@@ -12,12 +12,34 @@ export default function ReviewsPage() {
   const { selectedProductId } = useProduct();
   const { data: ingestData } = useIngest();
   const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   
   const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
 
   const { data: apiData, isLoading } = useGetProductReviews(selectedProductId!, { filter }, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductReviewsQueryKey(selectedProductId!, { filter }) } });
 
-  const data = apiData || ingestData.reviews;
+  let data = apiData;
+  if (!apiData && ingestData?.reviews) {
+    let filteredItems = ingestData.reviews.items || [];
+    if (filter === "spam") {
+      filteredItems = filteredItems.filter((r: any) => r.is_spam);
+    } else if (filter === "duplicates") {
+      filteredItems = filteredItems.filter((r: any) => r.is_duplicate);
+    } else if (filter === "ambiguous") {
+      filteredItems = filteredItems.filter((r: any) => r.is_sarcastic || r.overall_sentiment === 'ambiguous');
+    }
+    
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filteredItems = filteredItems.filter((r: any) => r.text?.toLowerCase().includes(lowerQuery));
+    }
+    
+    data = {
+      ...ingestData.reviews,
+      items: filteredItems,
+      total: filteredItems.length
+    };
+  }
 
   return (
     <div className="space-y-6">
@@ -37,7 +59,7 @@ export default function ReviewsPage() {
         </Tabs>
         <div className="relative w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search reviews..." className="pl-8" />
+          <Input placeholder="Search reviews..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
       </div>
 
