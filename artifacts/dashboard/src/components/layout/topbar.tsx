@@ -1,45 +1,129 @@
+import { useState, useEffect } from "react";
 import { useProduct } from "@/contexts/ProductContext";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useIngest } from "@/contexts/IngestContext";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { Download, Sun, Moon, CalendarDays } from "lucide-react";
+
+const DEFAULT_PRODUCTS = [
+  { id: 1, name: "Nexus Wireless Earbuds" },
+  { id: 2, name: "AeroGlide Running Shoes" },
+  { id: 3, name: "Aura Smartwatch" },
+];
+
+const PAGE_NAMES: Record<string, string> = {
+  "/":           "Dashboard",
+  "/reviews":    "Reviews Queue",
+  "/features":   "Feature Analysis",
+  "/trends":     "Trends",
+  "/ingest":     "Ingestion",
+  "/compare":    "Compare",
+  "/moderation": "Moderation",
+};
+
+function getToday() {
+  return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
 export function Topbar() {
   const { selectedProductId } = useProduct();
+  const { products } = useIngest();
   const [location] = useLocation();
-  
-  const getPageName = () => {
-    if (location === "/") return "Overview";
-    if (location === "/reviews") return "Reviews";
-    if (location === "/trends") return "Trends";
-    if (location === "/ingest") return "Ingestion";
-    if (location === "/compare") return "Compare";
-    return "Dashboard";
-  };
+  const [isDark, setIsDark] = useState(true);
+  const [exported, setExported] = useState(false);
+
+  // Sync with actual <html> class on mount
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.remove("dark");
+      html.classList.add("light");
+    } else {
+      html.classList.remove("light");
+      html.classList.add("dark");
+    }
+    setIsDark(!isDark);
+  }
+
+  function handleExport() {
+    setExported(true);
+    setTimeout(() => setExported(false), 2000);
+  }
+
+  const displayProducts = products.length > 0 ? products : DEFAULT_PRODUCTS;
+  const activeProduct = displayProducts.find(p => p.id === selectedProductId) ?? displayProducts[0];
+  const pageName = PAGE_NAMES[location] ?? "Dashboard";
 
   return (
-    <header className="h-14 border-b border-border bg-background flex items-center justify-between px-6">
-      <div className="flex items-center gap-4">
+    <header className="h-14 shrink-0 border-b border-border bg-background flex items-center justify-between px-5 gap-4">
+      {/* Left */}
+      <div className="flex items-center gap-3 min-w-0">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground text-[13px]">
+                ReviewIQ
+              </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{getPageName()}</BreadcrumbPage>
+              <BreadcrumbPage className="text-[13px] font-medium">{pageName}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="flex items-center gap-2">
-          <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-[10px]">OL</AvatarFallback>
-          </Avatar>
-        </div>
+
+        {activeProduct && (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 border border-border/50">
+            <span className="text-[12px] font-medium text-foreground/90 truncate max-w-[160px]">
+              {activeProduct.name}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-medium border-l border-border/60 pl-1.5">
+              FMCG · Analytics
+            </span>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm">Last 7 days</Button>
-        <Button variant="outline" size="sm">All models</Button>
+
+      {/* Right */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Date range */}
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/30 text-[12px] text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors select-none">
+          <CalendarDays className="w-3.5 h-3.5" />
+          Jan 1, 2025 – {getToday()}
+        </div>
+
+        {/* Theme toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+        >
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </Button>
+
+        {/* Export */}
+        <Button
+          size="sm"
+          className="h-8 gap-1.5 text-[12.5px] font-medium"
+          onClick={handleExport}
+        >
+          <Download className="w-3.5 h-3.5" />
+          {exported ? "Exported!" : "Export Report"}
+        </Button>
       </div>
     </header>
   );

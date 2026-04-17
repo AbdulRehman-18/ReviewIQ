@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import { useProduct } from "@/contexts/ProductContext";
 
 export interface DashboardMetrics {
   overview: {
@@ -19,9 +20,15 @@ export interface DashboardMetrics {
   isDataIngested: boolean;
 }
 
+export interface IngestedProduct {
+  id: number;
+  name: string;
+}
+
 interface IngestContextType {
   data: DashboardMetrics;
-  setIngestedData: (data: Partial<DashboardMetrics>) => void;
+  products: IngestedProduct[];
+  setMultiProductData: (productsMap: Record<number, DashboardMetrics>, productList: IngestedProduct[]) => void;
   resetData: () => void;
 }
 
@@ -47,18 +54,24 @@ const defaultState: DashboardMetrics = {
 const IngestContext = createContext<IngestContextType | undefined>(undefined);
 
 export function IngestProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<DashboardMetrics>(defaultState);
+  const { selectedProductId } = useProduct();
+  const [productsMap, setProductsMap] = useState<Record<number, DashboardMetrics>>({});
+  const [productsList, setProductsList] = useState<IngestedProduct[]>([]);
 
-  const setIngestedData = (newData: Partial<DashboardMetrics>) => {
-    setData((prev) => ({ ...prev, ...newData, isDataIngested: true }));
+  const setMultiProductData = (newMap: Record<number, DashboardMetrics>, newList: IngestedProduct[]) => {
+    setProductsMap(newMap);
+    setProductsList(newList);
   };
 
   const resetData = () => {
-    setData(defaultState);
+    setProductsMap({});
+    setProductsList([]);
   };
 
+  const activeData = (selectedProductId && productsMap[selectedProductId]) || defaultState;
+
   return (
-    <IngestContext.Provider value={{ data, setIngestedData, resetData }}>
+    <IngestContext.Provider value={{ data: activeData, products: productsList, setMultiProductData, resetData }}>
       {children}
     </IngestContext.Provider>
   );

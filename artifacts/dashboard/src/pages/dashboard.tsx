@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { useProduct } from "@/contexts/ProductContext";
 import { useIngest } from "@/contexts/IngestContext";
 import {
@@ -10,13 +11,114 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Calendar, ChevronDown } from "lucide-react";
+import { Filter, Calendar, ChevronDown, Search, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { FeatureSentimentChart, type FeatureData } from "@/components/dashboard/FeatureSentimentChart";
 import { RecommendationsPanel } from "@/components/dashboard/RecommendationsPanel";
+
+const DEFAULT_PRODUCTS = [
+  { id: 1, name: "Nexus Wireless Earbuds",   dot: "positive" },
+  { id: 2, name: "AeroGlide Running Shoes",  dot: "negative" },
+  { id: 3, name: "Aura Smartwatch",           dot: "neutral"  },
+] as const;
+
+function DotColor({ dot }: { dot: string }) {
+  const cls =
+    dot === "positive" ? "bg-emerald-500" :
+    dot === "negative" ? "bg-rose-500"    : "bg-amber-400";
+  return <span className={`w-2 h-2 rounded-full shrink-0 ${cls}`} />;
+}
+
+function ProductSwitcher() {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { products: ingestProducts } = useIngest();
+  const { selectedProductId, setSelectedProductId } = useProduct();
+
+  const products = ingestProducts.length > 0
+    ? ingestProducts.map((p, i) => ({ ...p, dot: i % 3 === 0 ? "positive" : i % 3 === 1 ? "negative" : "neutral" }))
+    : DEFAULT_PRODUCTS.map(p => ({ ...p }));
+
+  const active = products.find(p => p.id === selectedProductId) ?? products[0];
+
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="relative w-64" ref={dropdownRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+      >
+        <div className="flex items-center gap-2 overflow-hidden">
+          <DotColor dot={active?.dot ?? "neutral"} />
+          <span className="text-sm font-medium truncate leading-none">
+            {active?.name ?? "Select product"}
+          </span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+         <div className="absolute top-[calc(100%+4px)] right-0 w-[280px] z-50 bg-popover border border-border rounded-lg shadow-md overflow-hidden">
+          <div className="p-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                autoFocus
+                placeholder="Search products…"
+                className="w-full pl-8 pr-2 py-1.5 text-xs bg-muted/50 rounded flex h-8 items-center border border-input px-3 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto py-1">
+            {filtered.length > 0 ? filtered.map(p => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setSelectedProductId(p.id);
+                  setOpen(false);
+                  setSearch("");
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+              >
+                <DotColor dot={p.dot} />
+                <span className="flex-1 truncate">{p.name}</span>
+                {p.id === selectedProductId && (
+                  <Check className="w-4 h-4 text-primary shrink-0" />
+                )}
+              </button>
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-4">No products found</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { selectedProductId } = useProduct();
@@ -54,9 +156,12 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">Product performance and customer sentiment summary.</p>
         </div>
-        <Button variant="outline" size="sm">
-          <Filter className="w-4 h-4 mr-2" /> Filter
-        </Button>
+        <div className="flex items-center gap-4">
+          <ProductSwitcher />
+          <Button variant="outline" size="sm" className="h-9">
+            <Filter className="w-4 h-4 mr-2" /> Filter
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview">

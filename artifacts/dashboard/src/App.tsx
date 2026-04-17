@@ -9,6 +9,7 @@ import { IngestProvider } from "@/contexts/IngestContext";
 import { AppLayout } from "@/components/layout/app-layout";
 import DashboardPage from "@/pages/dashboard";
 import ReviewsPage from "@/pages/reviews";
+import FeaturesPage from "@/pages/features";
 import TrendsPage from "@/pages/trends";
 import IngestPage from "@/pages/ingest";
 import ComparePage from "@/pages/compare";
@@ -33,6 +34,7 @@ function Router() {
           <Switch>
             <Route path="/"           component={DashboardPage}  />
             <Route path="/reviews"    component={ReviewsPage}    />
+            <Route path="/features"   component={FeaturesPage}   />
             <Route path="/trends"     component={TrendsPage}     />
             <Route path="/ingest"     component={IngestPage}     />
             <Route path="/compare"    component={ComparePage}    />

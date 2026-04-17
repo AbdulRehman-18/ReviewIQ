@@ -1,102 +1,118 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
   MessageSquare,
-  Globe,
   Trophy,
   TrendingUp,
   Upload,
-  Search,
-  ShieldCheck,
+  Radio,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+
+const ANALYTICS_NAV = [
+  { title: "Dashboard",      href: "/",        icon: LayoutDashboard              },
+  { title: "Trends",         href: "/trends",  icon: TrendingUp, badge: "3"       },
+  { title: "Reviews Queue",  href: "/reviews", icon: MessageSquare                },
+  { title: "Compare",        href: "/compare", icon: Trophy                       },
+] as const;
+
+const DATA_NAV = [
+  { title: "Ingestion",  href: "/ingest", icon: Upload, live: false },
+  { title: "Live Demo",  href: "/ingest", icon: Radio,  live: true  },
+] as const;
 
 export function Sidebar() {
   const [location] = useLocation();
 
-  const navigation = [
-    {
-      title: "General",
-      items: [
-        { title: "Overview", href: "/", icon: LayoutDashboard },
-        { title: "Reviews", href: "/reviews", icon: MessageSquare },
-        { title: "Sources", href: "#", icon: Globe },
-      ],
-    },
-    {
-      title: "Preferences",
-      items: [
-        { title: "Competitors", href: "/compare", icon: Trophy, badge: "2" },
-        { title: "Trends", href: "/trends", icon: TrendingUp },
-      ],
-    },
-    {
-      title: "Settings",
-      items: [
-        { title: "Ingestion",   href: "/ingest",      icon: Upload      },
-        { title: "Moderation",  href: "/moderation",  icon: ShieldCheck },
-      ],
-    },
-  ];
+  function isActive(href: string) {
+    return href === "/" ? location === "/" : location.startsWith(href);
+  }
+
+  function NavItem({
+    title, href, icon: Icon, badge, live,
+  }: { title: string; href: string; icon: any; badge?: string; live?: boolean }) {
+    const active = isActive(href);
+    return (
+      <Link href={href}>
+        <span
+          className={`group flex items-center justify-between px-2.5 py-[7px] rounded-md text-[13px] font-medium transition-colors cursor-pointer ${
+            active
+              ? "bg-primary/10 text-primary"
+              : "text-sidebar-foreground/80 hover:bg-muted/50 hover:text-foreground"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <Icon className={`w-[15px] h-[15px] ${active ? "text-primary" : "text-muted-foreground"}`} />
+            {title}
+          </div>
+          {badge && (
+            <Badge className="h-4 min-w-[16px] px-1 text-[9px] font-bold bg-rose-500 text-white border-0 rounded-full">
+              {badge}
+            </Badge>
+          )}
+          {live && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+          )}
+        </span>
+      </Link>
+    );
+  }
 
   return (
-    <div className="w-64 border-r border-border bg-sidebar flex flex-col">
-      <div className="p-4 flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-          <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
+    <aside className="w-[220px] shrink-0 border-r border-border bg-sidebar flex flex-col h-full">
+      {/* ── Logo ── */}
+      <div className="h-14 px-4 flex items-center gap-2.5 border-b border-border/50 shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="white" />
+          </svg>
         </div>
-        <span className="font-bold text-sidebar-foreground">ReviewIQ</span>
+        <span className="font-bold text-[15px] text-sidebar-foreground tracking-tight">ReviewIQ</span>
+        <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary tracking-widest">
+          BETA
+        </span>
       </div>
 
-      <div className="px-4 pb-4">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="pl-8 bg-background border-border h-9"
-          />
-          <div className="absolute right-2.5 top-2.5">
-            <span className="text-[10px] text-muted-foreground border border-border rounded px-1">⌘K</span>
+      {/* ── Navigation ── */}
+      <div className="flex-1 overflow-y-auto py-5 space-y-4">
+        <div className="px-3">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-0.5">
+            Analytics
+          </p>
+          <div className="space-y-0.5">
+            {ANALYTICS_NAV.map(item => (
+              <NavItem key={item.title} {...item} />
+            ))}
+          </div>
+        </div>
+        <div className="px-3">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-0.5">
+            Data
+          </p>
+          <div className="space-y-0.5">
+            {DATA_NAV.map(item => (
+              <NavItem key={item.title} {...item} />
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {navigation.map((section, i) => (
-          <div key={i} className="mb-6">
-            <h3 className="px-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {section.title}
-            </h3>
-            <div className="space-y-1 px-2">
-              {section.items.map((item) => {
-                const isActive = location === item.href;
-                return (
-                  <Link key={item.title} href={item.href}>
-                    <span
-                      className={`flex items-center justify-between px-2 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                        isActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-sidebar-foreground hover:bg-accent/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                        {item.title}
-                      </div>
-                      {item.badge && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary text-white border-0">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+      {/* ── User Footer ── */}
+      <div className="px-3 py-3 border-t border-border/50 shrink-0">
+        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
+          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <span className="text-[11px] font-bold text-primary">JD</span>
           </div>
-        ))}
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold leading-tight truncate">Jane Doe</p>
+            <p className="text-[11px] text-muted-foreground leading-tight">Product Analyst</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }
