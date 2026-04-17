@@ -7,6 +7,7 @@ import { Upload, FileCheck, Loader2, CheckCircle2, AlertCircle } from "lucide-re
 import { Progress } from "@/components/ui/progress";
 import { useLocation } from "wouter";
 import { useIngest } from "@/contexts/IngestContext";
+import { analyzeReviews, buildLanguageBreakdown, extractReviewTextItems } from "@/lib/review-analysis";
 
 export default function IngestPage() {
   const [, setLocation] = useLocation();
@@ -40,20 +41,29 @@ export default function IngestPage() {
               sarcasm: sarcPercent
             });
             
+            const languageBreakdown = buildLanguageBreakdown(analyzedReviews);
+            const languagesDetected = Object.keys(languageBreakdown);
+            const spamCount = analyzedReviews.filter((review) => review.is_spam || review.is_bot).length;
+            const duplicateCount = analyzedReviews.filter((review) => review.is_duplicate).length;
+            const ambiguousPercent = analyzedReviews.length
+              ? Math.round((analyzedReviews.filter((review) => review.overall_sentiment === "ambiguous").length / analyzedReviews.length) * 100)
+              : 0;
+            const neutralPercent = Math.max(0, 100 - posPercent - negPercent - sarcPercent - ambiguousPercent);
+
             const syntheticOverview = {
               total_reviews: totalItems,
-              valid_reviews: Math.floor(totalItems * 0.95),
-              spam_count: Math.floor(totalItems * 0.02),
-              duplicate_count: Math.floor(totalItems * 0.03),
-              sarcastic_count: Math.floor((sarcPercent / 100) * totalItems),
+              valid_reviews: Math.max(0, totalItems - spamCount - duplicateCount),
+              spam_count: spamCount,
+              duplicate_count: duplicateCount,
+              sarcastic_count: analyzedReviews.filter((review) => review.is_sarcastic).length,
               emerging_issues_count: 2,
-              languages_detected: ["en"],
-              language_breakdown: { en: totalItems },
-              overall_sentiment: { positive: posPercent, neutral: 100 - posPercent - negPercent - sarcPercent, negative: negPercent, ambiguous: 0, sarcasm: sarcPercent }
+              languages_detected: languagesDetected,
+              language_breakdown: languageBreakdown,
+              overall_sentiment: { positive: posPercent, neutral: neutralPercent, negative: negPercent, ambiguous: ambiguousPercent, sarcasm: sarcPercent }
             };
             
             const syntheticFeatures = [
-               { feature: "General Quality", mention_count: Math.floor(totalItems * 0.8), positive_pct: posPercent, neutral_pct: 100-posPercent-negPercent-sarcPercent, negative_pct: negPercent, ambiguous_pct: sarcPercent }
+               { feature: "General Quality", mention_count: analyzedReviews.length || totalItems, positive_pct: posPercent, neutral_pct: neutralPercent, negative_pct: negPercent, ambiguous_pct: sarcPercent }
             ];
 
             const syntheticTrends = Array.from({ length: 14 }).map((_, i) => {
@@ -94,52 +104,6 @@ export default function IngestPage() {
       }, 400);
     };
 
-    const getSentiment = (lines: string[]) => {
-      const positiveWords = ['good', 'great', 'awesome', 'excellent', 'amazing', 'perfect', 'love', 'best', 'fantastic', 'helpful', 'positive', 'recommend'];
-      const negativeWords = ['bad', 'terrible', 'awful', 'poor', 'worst', 'hate', 'disappointed', 'useless', 'wrong', 'negative', 'frustrating'];
-      const sarcasmWords = ['sarcastic', 'yeah right', 'sure', 'as if', 'joke', 'kidding', 'whatever'];
-      
-      let pos = 0;
-      let neg = 0;
-      let sarc = 0;
-      
-      const analyzedReviews = lines.map((line, index) => {
-        const lower = line.toLowerCase();
-        const isPos = positiveWords.some(w => lower.includes(w));
-        const isNeg = negativeWords.some(w => lower.includes(w));
-        const isSarc = sarcasmWords.some(w => lower.includes(w));
-        
-        let sentiment = 'neutral';
-        if (isSarc) { sarc++; sentiment = 'sarcastic'; }
-        else if (isPos && !isNeg) { pos++; sentiment = 'positive'; }
-        else if (isNeg && !isPos) { neg++; sentiment = 'negative'; }
-
-        return {
-          id: index + 1,
-          product_id: 1,
-          text: line,
-          language: "en",
-          overall_sentiment: sentiment,
-          is_spam: false,
-          is_duplicate: false,
-          is_sarcastic: isSarc,
-          features: [{ feature: "General Quality", sentiment: sentiment, confidence: 0.9 }],
-          created_at: new Date().toISOString(),
-          review_date: new Date().toISOString()
-        };
-      });
-      
-      const total = lines.length;
-      if (total === 0) return { p: 0, n: 0, s: 0, reviews: [] };
-      
-      return {
-        p: Math.round((pos / total) * 100) || 0,
-        n: Math.round((neg / total) * 100) || 0,
-        s: Math.round((sarc / total) * 100) || 0,
-        reviews: analyzedReviews
-      };
-    };
-
     if (mode === 'file' && file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -150,13 +114,8 @@ export default function IngestPage() {
         if (file.name.endsWith('.json') || file.type === 'application/json') {
           try {
             const data = JSON.parse(text);
-            if (Array.isArray(data)) {
-              totalCount = data.length;
-              linesToAnalyze = data.map(d => JSON.stringify(d));
-            } else {
-              totalCount = 1;
-              linesToAnalyze = [JSON.stringify(data)];
-            }
+            linesToAnalyze = extractReviewTextItems(data);
+            totalCount = linesToAnalyze.length;
           } catch (err) {
             linesToAnalyze = text.split('\n').filter(line => line.trim().length > 0);
             totalCount = linesToAnalyze.length;
@@ -166,7 +125,7 @@ export default function IngestPage() {
           linesToAnalyze = allLines.length > 1 ? allLines.slice(1) : allLines;
           totalCount = linesToAnalyze.length;
         }
-        const sentiment = getSentiment(linesToAnalyze);
+        const sentiment = analyzeReviews(linesToAnalyze);
         finishProcessing(totalCount, sentiment.p, sentiment.n, sentiment.s, sentiment.reviews);
       };
       reader.onerror = () => {
@@ -176,24 +135,23 @@ export default function IngestPage() {
       reader.readAsText(file);
     } else if (mode === 'text' && pastedText.trim()) {
       const linesToAnalyze = pastedText.split('\n').filter(line => line.trim().length > 0);
-      const sentiment = getSentiment(linesToAnalyze);
+      const sentiment = analyzeReviews(linesToAnalyze);
       finishProcessing(linesToAnalyze.length, sentiment.p, sentiment.n, sentiment.s, sentiment.reviews);
     } else {
-      const total = Math.floor(Math.random() * 500) + 100;
-      const mockReviews = Array.from({length: 10}).map((_, i) => ({
-          id: i + 1,
-          product_id: 1,
-          text: `Sample simulated review #${i + 1}`,
-          language: "en",
-          overall_sentiment: "neutral",
-          is_spam: false,
-          is_duplicate: false,
-          is_sarcastic: false,
-          features: [{ feature: "General Quality", sentiment: "neutral", confidence: 0.9 }],
-          created_at: new Date().toISOString(),
-          review_date: new Date().toISOString()
-      }));
-      finishProcessing(total, Math.floor(Math.random() * 40) + 40, Math.floor(Math.random() * 20) + 5, Math.floor(Math.random() * 10) + 1, mockReviews);
+      const simulatedLines = [
+        "Great battery life and fast delivery.",
+        "Product acha hai but packaging kharab thi.",
+        "वाह, two days me broken product bhejna great service.",
+        "நல்ல sound quality, price worth.",
+        "బాగుంది but charger slow.",
+        "Worst build quality, refund please.",
+        "Same same same same same same same same same",
+        "Zabardast value for money.",
+        "খুব ভালো product but delivery late.",
+        "https://spam.example buy now discount code",
+      ];
+      const sentiment = analyzeReviews(simulatedLines);
+      finishProcessing(sentiment.reviews.length, sentiment.p, sentiment.n, sentiment.s, sentiment.reviews);
     }
   };
 
