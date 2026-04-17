@@ -7,6 +7,7 @@ import {
   TrendingUp,
   Upload,
   Search,
+  ShieldCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,8 @@ export function Sidebar() {
     {
       title: "Settings",
       items: [
-        { title: "Ingestion", href: "/ingest", icon: Upload },
+        { title: "Ingestion",   href: "/ingest",      icon: Upload      },
+        { title: "Moderation",  href: "/moderation",  icon: ShieldCheck },
       ],
     },
   ];

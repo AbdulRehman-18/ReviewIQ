@@ -11,6 +11,7 @@ import ReviewsPage from "@/pages/reviews";
 import TrendsPage from "@/pages/trends";
 import IngestPage from "@/pages/ingest";
 import ComparePage from "@/pages/compare";
+import ModerationPage from "@/pages/moderation";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ function Router() {
         <Route path="/trends" component={TrendsPage} />
         <Route path="/ingest" component={IngestPage} />
         <Route path="/compare" component={ComparePage} />
+        <Route path="/moderation" component={ModerationPage} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

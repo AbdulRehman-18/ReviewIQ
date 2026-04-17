@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/moham/OneDrive/Desktop/ReviewIQ/artifacts/dashboard/src/pages -type f -name \"*.tsx\" -exec basename {} \\\\;)"
+    ]
+  }
+}
