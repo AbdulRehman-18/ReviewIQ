@@ -1,9 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockProducts, mockFeatures } from "@/lib/mock-data";
+import { useIngest } from "@/contexts/IngestContext";
 
 export default function ComparePage() {
+  const { data: ingestData } = useIngest();
+  const products = [{ id: 1, name: "Current Dataset" }];
+  const features = ingestData.features || [];
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -17,7 +20,7 @@ export default function ComparePage() {
                <SelectValue placeholder="Product 1" />
              </SelectTrigger>
              <SelectContent>
-               {mockProducts.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
+               {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
              </SelectContent>
            </Select>
            <Select>
@@ -25,7 +28,7 @@ export default function ComparePage() {
                <SelectValue placeholder="Product 2" />
              </SelectTrigger>
              <SelectContent>
-               {mockProducts.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
+               {products.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>)}
              </SelectContent>
            </Select>
         </div>
@@ -46,7 +49,7 @@ export default function ComparePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockFeatures.map(f => (
+              {features.map((f: any) => (
                 <TableRow key={f.feature}>
                   <TableCell className="font-medium">{f.feature}</TableCell>
                   <TableCell className="text-rose-500">{f.negative_pct}%</TableCell>

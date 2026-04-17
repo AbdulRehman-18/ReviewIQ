@@ -1,15 +1,18 @@
 import { useProduct } from "@/contexts/ProductContext";
+import { useIngest } from "@/contexts/IngestContext";
 import { useGetProductTrends, getGetProductTrendsQueryKey } from "@workspace/api-client-react";
-import { mockTrends } from "@/lib/mock-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 export default function TrendsPage() {
   const { selectedProductId } = useProduct();
+  const { data: ingestData } = useIngest();
   const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
 
-  const { data: trends = mockTrends, isLoading } = useGetProductTrends(selectedProductId!, {}, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductTrendsQueryKey(selectedProductId!, {}) } });
+  const { data: apiData, isLoading } = useGetProductTrends(selectedProductId!, {}, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductTrendsQueryKey(selectedProductId!, {}) } });
+
+  const trends = apiData || ingestData.trends;
 
   return (
     <div className="space-y-6">

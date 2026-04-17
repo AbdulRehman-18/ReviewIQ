@@ -1,28 +1,33 @@
 import { useProduct } from "@/contexts/ProductContext";
+import { useIngest } from "@/contexts/IngestContext";
 import { useGetProductOverview, useGetProductFeatures, useGetEmergingIssues, getGetProductOverviewQueryKey, getGetProductFeaturesQueryKey, getGetEmergingIssuesQueryKey } from "@workspace/api-client-react";
-import { mockOverview, mockFeatures, mockEmergingIssues, mockTrends } from "@/lib/mock-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Filter } from "lucide-react";
+import { TrendingUp, TrendingDown, Filter, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
 
 export default function DashboardPage() {
   const { selectedProductId } = useProduct();
+  const { data: ingestData } = useIngest();
   const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
 
-  const { data: overview = mockOverview, isLoading: loadingOverview } = useGetProductOverview(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductOverviewQueryKey(selectedProductId!) } });
-  const { data: features = mockFeatures, isLoading: loadingFeatures } = useGetProductFeatures(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductFeaturesQueryKey(selectedProductId!) } });
-  const { data: issues = mockEmergingIssues, isLoading: loadingIssues } = useGetEmergingIssues(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetEmergingIssuesQueryKey(selectedProductId!) } });
+  const { data: apiOverview } = useGetProductOverview(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductOverviewQueryKey(selectedProductId!) } });
+  const { data: apiFeatures } = useGetProductFeatures(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductFeaturesQueryKey(selectedProductId!) } });
+  const { data: apiIssues } = useGetEmergingIssues(selectedProductId!, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetEmergingIssuesQueryKey(selectedProductId!) } });
+
+  const overview = apiOverview || ingestData.overview;
+  const features = apiFeatures || ingestData.features;
+  const issues = apiIssues || ingestData.issues;
 
   const metrics = [
-    { label: "Total Reviews", value: overview?.total_reviews.toLocaleString(), change: "+12%", up: true },
-    { label: "Valid Reviews", value: overview?.valid_reviews.toLocaleString(), change: "+10%", up: true },
-    { label: "Positive %", value: `${((overview?.overall_sentiment.positive ?? 0) * 100).toFixed(1)}%`, change: "+2%", up: true },
-    { label: "Negative %", value: `${((overview?.overall_sentiment.negative ?? 0) * 100).toFixed(1)}%`, change: "-1%", up: false },
-    { label: "Emerging Issues", value: overview?.emerging_issues_count.toString(), change: "+1", up: false },
-    { label: "Languages", value: overview?.languages_detected.length.toString(), change: "0", up: true },
+    { label: "Total Reviews", value: overview?.total_reviews?.toLocaleString() || "0", change: "+12%", up: true },
+    { label: "Valid Reviews", value: overview?.valid_reviews?.toLocaleString() || "0", change: "+10%", up: true },
+    { label: "Positive %", value: `${((overview?.overall_sentiment?.positive ?? 0)).toFixed(1)}%`, change: "+2%", up: true },
+    { label: "Negative %", value: `${((overview?.overall_sentiment?.negative ?? 0)).toFixed(1)}%`, change: "-1%", up: false },
+    { label: "Sarcasm %", value: `${((overview?.overall_sentiment?.sarcasm ?? 0)).toFixed(1)}%`, change: "+1%", up: false },
+    { label: "Emerging Issues", value: overview?.emerging_issues_count?.toString() || "0", change: "+1", up: false },
   ];
 
   return (
@@ -65,19 +70,84 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Audience Growth</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>Sentiment Trends</CardTitle>
+              <CardDescription>See how customer sentiment evolved during the reporting period</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+               <Button variant="outline" size="sm" className="h-8 shadow-sm">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Daily
+                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+               </Button>
+            </div>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockTrends}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="positive_pct" stroke="hsl(var(--chart-4))" strokeWidth={2} name="Positive %" />
-                <Line type="monotone" dataKey="negative_pct" stroke="hsl(var(--chart-5))" strokeWidth={2} name="Negative %" />
+              <LineChart data={ingestData.trends || []} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.2)" />
+                <XAxis 
+                  dataKey="date" 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickMargin={8}
+                  tickFormatter={(value) => {
+                     const date = new Date(value);
+                     if (isNaN(date.getTime())) return value;
+                     return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                  }}
+                  className="text-xs text-muted-foreground"
+                />
+                <YAxis 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickMargin={8}
+                  className="text-xs text-muted-foreground"
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ fontSize: '14px' }}
+                  labelStyle={{ fontSize: '14px', fontWeight: '500', color: 'hsl(var(--foreground))', marginBottom: '4px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '14px', paddingTop: '10px' }} />
+                <Line 
+                  type="monotone" 
+                  dataKey="positive_pct" 
+                  stroke="#10b981" 
+                  strokeWidth={2} 
+                  name="Positive %" 
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: '#10b981' }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="negative_pct" 
+                  stroke="#ef4444" 
+                  strokeWidth={2} 
+                  name="Negative %" 
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: '#ef4444' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="sarcasm_pct" 
+                  stroke="#f59e0b" 
+                  strokeWidth={2} 
+                  name="Sarcasm %" 
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: '#f59e0b' }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="bots_pct" 
+                  stroke="#8b5cf6" 
+                  strokeWidth={2} 
+                  name="Bot Activity %" 
+                  strokeDasharray="5 5"
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: '#8b5cf6' }} 
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -125,7 +195,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {issues?.map((issue, i) => (
+              {issues && issues.length > 0 ? issues.map((issue, i) => (
                 <div key={i} className="flex items-start justify-between border-b pb-4 last:border-0">
                   <div>
                     <h4 className="text-sm font-medium">{issue.feature}</h4>
@@ -136,7 +206,9 @@ export default function DashboardPage() {
                     <span className="text-xs text-muted-foreground">{issue.from_pct}% → {issue.to_pct}%</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-muted-foreground">No emerging issues tracked.</p>
+              )}
             </div>
           </CardContent>
         </Card>

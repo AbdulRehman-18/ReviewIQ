@@ -1,6 +1,6 @@
 import { useProduct } from "@/contexts/ProductContext";
+import { useIngest } from "@/contexts/IngestContext";
 import { useGetProductReviews, getGetProductReviewsQueryKey } from "@workspace/api-client-react";
-import { mockReviews } from "@/lib/mock-data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,14 @@ import { useState } from "react";
 
 export default function ReviewsPage() {
   const { selectedProductId } = useProduct();
+  const { data: ingestData } = useIngest();
   const [filter, setFilter] = useState("all");
   
   const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
 
-  const { data = mockReviews, isLoading } = useGetProductReviews(selectedProductId!, { filter }, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductReviewsQueryKey(selectedProductId!, { filter }) } });
+  const { data: apiData, isLoading } = useGetProductReviews(selectedProductId!, { filter }, { query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductReviewsQueryKey(selectedProductId!, { filter }) } });
+
+  const data = apiData || ingestData.reviews;
 
   return (
     <div className="space-y-6">
@@ -50,7 +53,7 @@ export default function ReviewsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.items.map((review) => (
+            {data?.items && data.items.length > 0 ? data.items.map((review: any) => (
               <TableRow key={review.id}>
                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                   {new Date(review.created_at).toLocaleDateString()}
@@ -68,7 +71,7 @@ export default function ReviewsPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1 flex-wrap">
-                    {review.features.map((f, i) => (
+                    {review.features && review.features.map((f: any, i: number) => (
                       <Badge key={i} variant="outline" className="text-[10px]">
                         {f.feature}
                       </Badge>
@@ -76,7 +79,13 @@ export default function ReviewsPage() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No reviews found. Ingest data to see reviews here.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
