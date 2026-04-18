@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useProduct } from "@/contexts/ProductContext";
-import { getListProductsQueryKey, useListProducts } from "@workspace/api-client-react";
+import { storage } from "@/lib/storage";
 
 export interface DashboardMetrics {
   overview: {
@@ -12,13 +12,25 @@ export interface DashboardMetrics {
     emerging_issues_count: number;
     languages_detected: string[];
     language_breakdown: Record<string, number>;
-    overall_sentiment: { positive: number; neutral: number; negative: number; ambiguous: number; sarcasm: number };
+    overall_sentiment: {
+      positive: number;
+      neutral: number;
+      negative: number;
+      ambiguous: number;
+      sarcasm: number;
+    };
   };
   features: any[];
   issues: any[];
   reviews: any;
   trends: any[];
   isDataIngested: boolean;
+  productsList?: string[];
+  productsData?: Map<string, {
+    reviews: any[];
+    features: string[];
+    stats: any;
+  }>;
 }
 
 export interface IngestedProduct {
@@ -29,7 +41,12 @@ export interface IngestedProduct {
 interface IngestContextType {
   data: DashboardMetrics;
   products: IngestedProduct[];
-  setIngestedData: (data: Omit<DashboardMetrics, "issues"> & { issues?: any[] }) => void;
+  productsMap: Record<number, DashboardMetrics>;
+  selectedProduct: string | null;
+  selectedFeature: string | null;
+  setSelectedProduct: (product: string | null) => void;
+  setSelectedFeature: (feature: string | null) => void;
+  setIngestedData: (data: Omit<DashboardMetrics, "issues"> & { issues?: any[] }, productName?: string) => void;
   setMultiProductData: (productsMap: Record<number, DashboardMetrics>, productList: IngestedProduct[]) => void;
   resetData: () => void;
 }
@@ -44,7 +61,7 @@ const defaultState: DashboardMetrics = {
     emerging_issues_count: 0,
     languages_detected: [],
     language_breakdown: {},
-    overall_sentiment: { positive: 0, neutral: 0, negative: 0, ambiguous: 0, sarcasm: 0 }
+    overall_sentiment: { positive: 0, neutral: 0, negative: 0, ambiguous: 0, sarcasm: 0 },
   },
   features: [],
   issues: [],
@@ -57,51 +74,85 @@ const IngestContext = createContext<IngestContextType | undefined>(undefined);
 
 export function IngestProvider({ children }: { children: ReactNode }) {
   const { selectedProductId, setSelectedProductId } = useProduct();
-  const [productsMap, setProductsMap] = useState<Record<number, DashboardMetrics>>({});
-  const [productsList, setProductsList] = useState<IngestedProduct[]>([]);
-  const useMockApi = import.meta.env.VITE_USE_MOCK_API === "true";
-  const { data: apiProducts } = useListProducts({
-    query: { enabled: !useMockApi, queryKey: getListProductsQueryKey() },
-  });
 
-  const products = apiProducts?.map((product) => ({ id: product.id, name: product.name })) ?? productsList;
+  const [productsMap, setProductsMap] = useState<Record<number, DashboardMetrics>>(
+    () => storage.getProductsMap<DashboardMetrics>()
+  );
+  const [productsList, setProductsList] = useState<IngestedProduct[]>(
+    () => storage.getProductsList<IngestedProduct>()
+  );
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
 
+  // Persist products map to localStorage whenever it changes
   useEffect(() => {
-    if (!apiProducts?.length) return;
-    if (selectedProductId && apiProducts.some((product) => product.id === selectedProductId)) return;
+    storage.setProductsMap(productsMap);
+  }, [productsMap]);
 
-    setSelectedProductId(apiProducts[0].id);
-  }, [apiProducts, selectedProductId, setSelectedProductId]);
+  // Persist products list to localStorage whenever it changes
+  useEffect(() => {
+    storage.setProductsList(productsList);
+  }, [productsList]);
 
-  const setIngestedData = (data: Omit<DashboardMetrics, "issues"> & { issues?: any[] }) => {
-    const productId = selectedProductId ?? 1;
-    const nextData = { ...data, issues: data.issues ?? [] };
+  // Auto-select first product if none selected
+  useEffect(() => {
+    if (productsList.length > 0 && !selectedProductId) {
+      setSelectedProductId(productsList[0].id);
+    }
+  }, [productsList, selectedProductId, setSelectedProductId]);
 
-    setProductsMap((current) => ({
-      ...current,
-      [productId]: nextData,
-    }));
+  const setIngestedData = (
+    data: Omit<DashboardMetrics, "issues"> & { issues?: any[] },
+    productName?: string
+  ) => {
+    const productId = selectedProductId ?? Date.now();
+    const nextData: DashboardMetrics = { ...data, issues: data.issues ?? [], isDataIngested: true };
 
-    setProductsList((current) => {
-      if (current.some((product) => product.id === productId)) return current;
-      return [...current, { id: productId, name: `Product ${productId}` }];
+    setProductsMap((prev) => ({ ...prev, [productId]: nextData }));
+
+    setProductsList((prev) => {
+      if (prev.some((p) => p.id === productId)) return prev;
+      const name = productName ?? `Product ${prev.length + 1}`;
+      return [...prev, { id: productId, name }];
     });
+
+    if (!selectedProductId) {
+      setSelectedProductId(productId);
+    }
   };
 
-  const setMultiProductData = (newMap: Record<number, DashboardMetrics>, newList: IngestedProduct[]) => {
+  const setMultiProductData = (
+    newMap: Record<number, DashboardMetrics>,
+    newList: IngestedProduct[]
+  ) => {
     setProductsMap(newMap);
     setProductsList(newList);
+    if (newList.length > 0) {
+      setSelectedProductId(newList[0].id);
+    }
   };
 
   const resetData = () => {
     setProductsMap({});
     setProductsList([]);
+    setSelectedProductId(null);
+    storage.clearAll();
   };
 
-  const activeData = (selectedProductId && productsMap[selectedProductId]) || defaultState;
+  const activeData =
+    (selectedProductId !== null && productsMap[selectedProductId]) || defaultState;
 
   return (
-    <IngestContext.Provider value={{ data: activeData, products, setIngestedData, setMultiProductData, resetData }}>
+    <IngestContext.Provider
+      value={{
+        data: activeData,
+        products: productsList,
+        productsMap,
+        setIngestedData,
+        setMultiProductData,
+        resetData,
+      }}
+    >
       {children}
     </IngestContext.Provider>
   );

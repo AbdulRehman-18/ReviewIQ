@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { storage } from "@/lib/storage";
 
 interface ProductContextType {
   selectedProductId: number | null;
@@ -8,7 +9,18 @@ interface ProductContextType {
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductProvider({ children }: { children: ReactNode }) {
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(1);
+  const [selectedProductId, _setSelectedProductId] = useState<number | null>(
+    () => storage.getSelectedProduct() ?? 1
+  );
+
+  useEffect(() => {
+    storage.setSelectedProduct(selectedProductId);
+  }, [selectedProductId]);
+
+  function setSelectedProductId(id: number | null) {
+    _setSelectedProductId(id);
+    storage.setSelectedProduct(id);
+  }
 
   return (
     <ProductContext.Provider value={{ selectedProductId, setSelectedProductId }}>

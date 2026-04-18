@@ -40,9 +40,10 @@ type ChartType = "bar" | "radar";
 
 interface FeatureSentimentChartProps {
   data?: FeatureData[];
+  highlightFeature?: string;
 }
 
-export function FeatureSentimentChart({ data = DUMMY_FEATURES }: FeatureSentimentChartProps) {
+export function FeatureSentimentChart({ data = DUMMY_FEATURES, highlightFeature }: FeatureSentimentChartProps) {
   const [chartType, setChartType] = useState<ChartType>("bar");
 
   return (
@@ -72,15 +73,50 @@ export function FeatureSentimentChart({ data = DUMMY_FEATURES }: FeatureSentimen
               className="h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                <BarChart
+                  data={data.map((d) => ({
+                    ...d,
+                    _dimmed: highlightFeature ? d.feature !== highlightFeature : false,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted-foreground) / 0.15)" />
                   <XAxis type="number" tickLine={false} axisLine={false} className="text-xs" />
-                  <YAxis dataKey="feature" type="category" width={90} tickLine={false} axisLine={false} className="text-xs" />
+                  <YAxis
+                    dataKey="feature"
+                    type="category"
+                    width={90}
+                    tickLine={false}
+                    axisLine={false}
+                    className="text-xs"
+                    tick={(props) => {
+                      const isDimmed = highlightFeature && props.payload?.value !== highlightFeature;
+                      return (
+                        <text
+                          x={props.x}
+                          y={props.y}
+                          dy={4}
+                          textAnchor="end"
+                          fontSize={11}
+                          fill={isDimmed ? "hsl(var(--muted-foreground) / 0.35)" : "hsl(var(--foreground))"}
+                          fontWeight={!isDimmed && highlightFeature ? 600 : 400}
+                        >
+                          {props.payload?.value}
+                        </text>
+                      );
+                    }}
+                  />
                   <Tooltip {...TOOLTIP_STYLE} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
-                  <Bar dataKey="positive_pct" stackId="a" fill={COLORS.positive} name="Positive %" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="neutral_pct"  stackId="a" fill={COLORS.neutral}  name="Neutral %"  />
-                  <Bar dataKey="negative_pct" stackId="a" fill={COLORS.negative} name="Negative %" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="positive_pct" stackId="a" fill={COLORS.positive} name="Positive %"
+                    opacity={highlightFeature ? undefined : 1}
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar dataKey="neutral_pct"  stackId="a" fill={COLORS.neutral}  name="Neutral %" />
+                  <Bar dataKey="negative_pct" stackId="a" fill={COLORS.negative} name="Negative %"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>

@@ -1,6 +1,4 @@
-import { useProduct } from "@/contexts/ProductContext";
 import { useIngest } from "@/contexts/IngestContext";
-import { useGetProductReviews, getGetProductReviewsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -86,8 +84,6 @@ const FILTERS: Array<{ value: ReviewFilter; label: string }> = [
   { value: "duplicates", label: "Duplicates"  },
 ];
 
-const LANG_CHIPS = ["EN", "FR", "DE", "ES", "HI"];
-
 function getReviewLanguages(review: any): string[] {
   if (Array.isArray(review.languages) && review.languages.length) return review.languages;
   if (typeof review.language === "string")
@@ -123,7 +119,7 @@ function impactClass(impact: string) {
 // ─── Review Drawer ───────────────────────────────────────────────────────────
 
 function highlightKeywords(text: string, sentiment: string) {
-  const keywords = ["dissolve", "clean", "scent", "packaging", "burst", "rash", "reaction", "quality", "love", "hate", "broken", "fast", "slow"];
+  const keywords = ["dissolve", "clean", "scent", "packaging", "burst", "rash", "reaction", "quality", "love", "hate", "broken", "fast", "slow", "battery", "delivery", "price", "display", "camera"];
   const color = sentiment === "positive" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
   const regex = new RegExp(`(${keywords.join("|")})`, "gi");
   return text.replace(regex, `<mark class="rounded px-0.5 font-medium ${color}">$1</mark>`);
@@ -134,14 +130,8 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/40 z-40 transition-opacity"
-        onClick={onClose}
-      />
-      {/* Panel */}
+      <div className="fixed inset-0 bg-black/40 z-40 transition-opacity" onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-[420px] max-w-full bg-background border-l border-border z-50 shadow-2xl flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="font-semibold text-[15px]">Review Detail</h3>
           <button
@@ -154,7 +144,6 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
 
         <ScrollArea className="flex-1">
           <div className="p-5 space-y-5">
-            {/* Review text */}
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Review</p>
               <p
@@ -166,21 +155,15 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
                   {review.overall_sentiment}
                 </span>
                 {review.is_sarcastic && (
-                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-amber-100 text-amber-700 border-amber-200">
-                    sarcasm
-                  </span>
+                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-amber-100 text-amber-700 border-amber-200">sarcasm</span>
                 )}
                 {(review.is_bot || review.is_spam) && (
-                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">
-                    bot
-                  </span>
+                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">bot</span>
                 )}
                 {review.is_duplicate && (
-                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-purple-100 text-purple-600 border-purple-200">
-                    duplicate
-                  </span>
+                  <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-purple-100 text-purple-600 border-purple-200">duplicate</span>
                 )}
-                {langs.map(l => (
+                {langs.map((l) => (
                   <span key={l} className="text-[11px] font-medium px-2.5 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
                     {l.toUpperCase()}
                   </span>
@@ -191,7 +174,6 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
               </div>
             </div>
 
-            {/* Feature sentiment */}
             {review.features && review.features.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -215,7 +197,7 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
                           <div
                             className={`h-full rounded-full transition-all ${
                               f.sentiment === "positive" ? "bg-emerald-500" :
-                              f.sentiment === "negative" ? "bg-rose-500"    : "bg-zinc-400"
+                              f.sentiment === "negative" ? "bg-rose-500" : "bg-zinc-400"
                             }`}
                             style={{ width: `${pct}%` }}
                           />
@@ -227,10 +209,9 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
               </div>
             )}
 
-            {/* Duplicate notice */}
             {review.is_duplicate && (
               <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-[12.5px] text-purple-700">
-                Part of a cluster of near-duplicate reviews detected in the last 7 days.
+                Part of a cluster of near-duplicate reviews detected in the dataset.
               </div>
             )}
           </div>
@@ -244,23 +225,15 @@ function ReviewDrawer({ review, onClose }: { review: any; onClose: () => void })
 
 export default function ReviewsPage() {
   const [, setLocation] = useLocation();
-  const { selectedProductId } = useProduct();
   const { data: ingestData } = useIngest();
   const [filter, setFilter]       = useState<ReviewFilter>("all");
   const [searchQuery, setSearch]  = useState("");
   const [activeLangs, setActiveLangs] = useState<Set<string>>(new Set());
   const [selectedReview, setSelectedReview] = useState<any>(null);
 
-  const isMock = import.meta.env.VITE_USE_MOCK_API === "true" || !selectedProductId;
-  const { data: apiData, isLoading } = useGetProductReviews(selectedProductId!, {}, {
-    query: { enabled: !isMock && !!selectedProductId, queryKey: getGetProductReviewsQueryKey(selectedProductId!, {}) },
-  });
-
-  const baseData   = apiData || ingestData?.reviews;
-  const allItems   = useMemo(() => baseData?.items || [], [baseData]);
+  const allItems   = useMemo(() => ingestData?.reviews?.items || [], [ingestData?.reviews]);
   const overview   = ingestData?.overview;
 
-  // Score computation
   const pos      = overview?.overall_sentiment?.positive ?? 0;
   const neg      = overview?.overall_sentiment?.negative ?? 0;
   const sarc     = overview?.overall_sentiment?.sarcasm  ?? 0;
@@ -276,8 +249,8 @@ export default function ReviewsPage() {
   const statusLabel = overallScore >= 75 ? "Excellent" : overallScore >= 55 ? "Good" : overallScore >= 35 ? "To improve" : "Needs attention";
   const statusClass =
     overallScore >= 75 ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-    overallScore >= 55 ? "bg-blue-100 text-blue-700 border-blue-200"          :
-    overallScore >= 35 ? "bg-amber-100 text-amber-700 border-amber-200"        :
+    overallScore >= 55 ? "bg-blue-100 text-blue-700 border-blue-200" :
+    overallScore >= 35 ? "bg-amber-100 text-amber-700 border-amber-200" :
     "bg-rose-100 text-rose-700 border-rose-200";
 
   const categories = [
@@ -307,8 +280,17 @@ export default function ReviewsPage() {
     },
   ];
 
+  // Collect all detected languages for filter chips
+  const detectedLangs = useMemo(() => {
+    const langs = new Set<string>();
+    allItems.forEach((r: any) => {
+      getReviewLanguages(r).forEach((l: string) => langs.add(l.toUpperCase()));
+    });
+    return Array.from(langs).slice(0, 8);
+  }, [allItems]);
+
   function toggleLang(lang: string) {
-    setActiveLangs(prev => {
+    setActiveLangs((prev) => {
       const next = new Set(prev);
       next.has(lang) ? next.delete(lang) : next.add(lang);
       return next;
@@ -320,7 +302,7 @@ export default function ReviewsPage() {
     if (activeLangs.size > 0) {
       items = items.filter((r: any) => {
         const langs = getReviewLanguages(r).map((l: string) => l.toUpperCase());
-        return langs.some(l => activeLangs.has(l));
+        return langs.some((l) => activeLangs.has(l));
       });
     }
     if (searchQuery) {
@@ -352,12 +334,10 @@ export default function ReviewsPage() {
         </p>
       </div>
 
-      {/* ── Score card (Sternify style) ── */}
       <Card className="shadow-sm border-border/60">
         <CardContent className="p-5">
           {hasData ? (
             <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Gauge */}
               <div className="flex flex-col items-center min-w-[176px] pt-1">
                 <LargeGauge score={overallScore} />
                 <p className="text-[13px] font-semibold -mt-1">Review Score</p>
@@ -366,9 +346,8 @@ export default function ReviewsPage() {
                 </span>
               </div>
 
-              {/* Categories */}
               <div className="flex-1 space-y-2 w-full">
-                {categories.map(cat => (
+                {categories.map((cat) => (
                   <div
                     key={cat.label}
                     className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/35 transition-colors"
@@ -401,14 +380,12 @@ export default function ReviewsPage() {
         </CardContent>
       </Card>
 
-      {/* ── Reviews table ── */}
       <Card className="shadow-sm">
         <CardContent className="p-0">
-          {/* Filter tabs */}
           <div className="px-4 pt-4 pb-0 border-b border-border/50">
             <Tabs value={filter} onValueChange={(v) => setFilter(v as ReviewFilter)}>
               <TabsList className="h-auto flex-wrap justify-start gap-1.5 bg-transparent p-0 mb-0">
-                {FILTERS.map(f => (
+                {FILTERS.map((f) => (
                   <TabsTrigger
                     key={f.value} value={f.value}
                     className="group gap-1 rounded-t-md border-b-2 border-transparent bg-transparent px-3 py-2 text-[12.5px] font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
@@ -423,9 +400,8 @@ export default function ReviewsPage() {
             </Tabs>
           </div>
 
-          {/* Search + language chips */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 flex-wrap">
-            <div className="relative w-64 group">
+            <div className="relative w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search reviews…"
@@ -434,24 +410,26 @@ export default function ReviewsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-1.5 ml-1">
-              {LANG_CHIPS.map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => toggleLang(lang)}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
-                    activeLangs.has(lang)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border/60 hover:bg-muted/50"
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
+            {detectedLangs.length > 0 && (
+              <div className="flex items-center gap-1.5 ml-1 flex-wrap">
+                {detectedLangs.map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => toggleLang(lang)}
+                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                      activeLangs.has(lang)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border/60 hover:bg-muted/50"
+                    }`}
+                    title={getLanguageLabel([lang.toLowerCase()])}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -465,13 +443,7 @@ export default function ReviewsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground text-[13px]">
-                      Loading reviews…
-                    </TableCell>
-                  </TableRow>
-                ) : filteredItems.length > 0 ? (
+                {filteredItems.length > 0 ? (
                   filteredItems.map((review: any) => (
                     <TableRow
                       key={review.id}
@@ -535,7 +507,7 @@ export default function ReviewsPage() {
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <span className="text-3xl opacity-30">🔍</span>
                         <p className="text-[13.5px] font-medium">No reviews found</p>
-                        <p className="text-[12px]">Try adjusting your filters</p>
+                        <p className="text-[12px]">Try adjusting your filters or ingest data first</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -546,7 +518,6 @@ export default function ReviewsPage() {
         </CardContent>
       </Card>
 
-      {/* ── Review Drawer ── */}
       {selectedReview && (
         <ReviewDrawer review={selectedReview} onClose={() => setSelectedReview(null)} />
       )}

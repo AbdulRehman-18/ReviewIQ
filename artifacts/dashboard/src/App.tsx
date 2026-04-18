@@ -1,5 +1,4 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,8 +13,6 @@ import TrendsPage from "@/pages/trends";
 import IngestPage from "@/pages/ingest";
 import ComparePage from "@/pages/compare";
 import ModerationPage from "@/pages/moderation";
-
-const queryClient = new QueryClient();
 
 const PAGE_TRANSITION = {
   initial:    { opacity: 0, y: 8  },
@@ -49,18 +46,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ProductProvider>
-          <IngestProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-          </IngestProvider>
-        </ProductProvider>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <TooltipProvider>
+      <ProductProvider>
+        <IngestProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+        </IngestProvider>
+      </ProductProvider>
+      <Toaster />
+    </TooltipProvider>
   );
 }
 

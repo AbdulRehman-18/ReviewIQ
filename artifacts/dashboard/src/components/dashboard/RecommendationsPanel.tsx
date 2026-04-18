@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import type { EmergingIssue } from "@workspace/api-client-react";
+interface EmergingIssue {
+  feature: string;
+  description?: string;
+  severity: "critical" | "high" | "medium" | "low";
+  from_pct?: number;
+  to_pct?: number;
+}
 
 type Priority = "critical" | "high" | "medium" | "low";
 
@@ -72,8 +78,8 @@ function mapIssuesToRecommendations(issues: EmergingIssue[]): Recommendation[] {
   return issues.map((issue, i) => ({
     id: i + 1,
     priority: issue.severity as Priority,
-    title: SEVERITY_TITLE[issue.severity]?.(issue.feature, issue.from_pct, issue.to_pct) ?? issue.feature,
-    description: issue.description,
+    title: SEVERITY_TITLE[issue.severity]?.(issue.feature, issue.from_pct ?? 0, issue.to_pct ?? 0) ?? issue.feature,
+    description: issue.description ?? `High ${issue.severity}-severity signal detected for ${issue.feature}.`,
     feature: issue.feature,
     action: SEVERITY_ACTION[issue.severity] ?? "Review",
   }));
