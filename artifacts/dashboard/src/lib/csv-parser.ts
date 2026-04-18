@@ -8,6 +8,7 @@ export interface ParsedCSVData {
   rows: Array<Record<string, string>>;
   reviewTexts: string[];
   productColumn?: string;
+  featureColumn?: string;
   categoryColumn?: string;
 }
 
@@ -40,11 +41,12 @@ export function parseCSV(content: string): ParsedCSVData {
   // Detect review column
   const reviewColumn = detectReviewColumn(headers);
   const productColumn = detectProductColumn(headers);
+  const featureColumn = detectFeatureColumn(headers);
   const categoryColumn = detectCategoryColumn(headers);
 
   // Extract review texts
   const reviewTexts = rows
-    .map(row => row[reviewColumn] || '')
+    .map(row => buildReviewText(row, reviewColumn, featureColumn))
     .filter(text => text.trim().length > 0);
 
   return {
@@ -52,8 +54,24 @@ export function parseCSV(content: string): ParsedCSVData {
     rows,
     reviewTexts,
     productColumn,
+    featureColumn,
     categoryColumn,
   };
+}
+
+function buildReviewText(
+  row: Record<string, string>,
+  reviewColumn: string,
+  featureColumn?: string
+): string {
+  const review = (row[reviewColumn] || '').trim();
+  if (!review) return '';
+  if (!featureColumn) return review;
+
+  const feature = (row[featureColumn] || '').trim();
+  if (!feature) return review;
+
+  return `feature: ${feature}. ${review}`;
 }
 
 /**
@@ -125,7 +143,7 @@ function detectReviewColumn(headers: string[]): string {
  * Detect which column contains product/feature name
  */
 function detectProductColumn(headers: string[]): string | undefined {
-  const productKeywords = ['product', 'item', 'feature', 'name', 'title'];
+  const productKeywords = ['product', 'item', 'name', 'title'];
   
   for (const keyword of productKeywords) {
     const match = headers.find(h => 
@@ -134,6 +152,19 @@ function detectProductColumn(headers: string[]): string | undefined {
     if (match) return match;
   }
   
+  return undefined;
+}
+
+function detectFeatureColumn(headers: string[]): string | undefined {
+  const featureKeywords = ['feature', 'features', 'aspect', 'attribute'];
+
+  for (const keyword of featureKeywords) {
+    const match = headers.find(h =>
+      h.toLowerCase().includes(keyword.toLowerCase())
+    );
+    if (match) return match;
+  }
+
   return undefined;
 }
 
@@ -169,7 +200,7 @@ export function groupByProduct(data: ParsedCSVData): Map<string, string[]> {
   
   data.rows.forEach(row => {
     const product = row[data.productColumn!] || 'Unknown';
-    const review = row[reviewColumn] || '';
+    const review = buildReviewText(row, reviewColumn, data.featureColumn);
     
     if (review.trim()) {
       if (!groups.has(product)) {
@@ -197,7 +228,7 @@ export function groupByCategory(data: ParsedCSVData): Map<string, string[]> {
   
   data.rows.forEach(row => {
     const category = row[data.categoryColumn!] || 'Unknown';
-    const review = row[reviewColumn] || '';
+    const review = buildReviewText(row, reviewColumn, data.featureColumn);
     
     if (review.trim()) {
       if (!groups.has(category)) {

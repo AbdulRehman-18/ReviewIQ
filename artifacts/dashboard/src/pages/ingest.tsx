@@ -118,6 +118,9 @@ export default function IngestPage() {
         analyzedReviews = analyzedReviews.map((review, i) => {
           const or = orResults[i];
           if (!or) return review;
+          const hasExplicitFeatures = review.features.some(
+            (f) => f.feature.toLowerCase() !== "general quality"
+          );
           return {
             ...review,
             overall_sentiment: or.overall_sentiment,
@@ -125,7 +128,9 @@ export default function IngestPage() {
             is_spam:           or.is_spam,
             is_bot:            or.is_bot,
             is_sarcastic:      or.is_sarcastic,
-            features:          or.features.length > 0 ? or.features : review.features,
+            features:          hasExplicitFeatures
+              ? review.features
+              : (or.features.length > 0 ? or.features : review.features),
           };
         });
         setProgress(75);
@@ -361,7 +366,8 @@ export default function IngestPage() {
           lines = all.length > 1 ? all.slice(1) : all;
         }
         
-        await processLines(lines);
+        const defaultName = productName.trim() || file.name.replace(/\.(csv|json)$/i, "");
+        await processLines(lines, defaultName);
       };
       reader.onerror = () => setError("Failed to read file.");
       reader.readAsText(file);

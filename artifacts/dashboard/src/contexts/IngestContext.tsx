@@ -101,6 +101,40 @@ export function IngestProvider({ children }: { children: ReactNode }) {
     }
   }, [productsList, selectedProductId, setSelectedProductId]);
 
+  const activeData =
+    (selectedProductId !== null && productsMap[selectedProductId]) || defaultState;
+
+  // Keep selected product/feature in sync with current dataset's CSV-derived product map.
+  useEffect(() => {
+    const productsData = activeData.productsData;
+    if (!productsData || productsData.size === 0) {
+      if (selectedProduct !== null) setSelectedProduct(null);
+      if (selectedFeature !== null) setSelectedFeature(null);
+      return;
+    }
+
+    if (selectedProduct && !productsData.has(selectedProduct)) {
+      setSelectedProduct(null);
+      if (selectedFeature !== null) setSelectedFeature(null);
+      return;
+    }
+
+    if (selectedFeature && selectedProduct) {
+      const productData = productsData.get(selectedProduct);
+      const hasFeature = !!productData?.reviews.some((review: any) =>
+        review.features?.some(
+          (feature: any) =>
+            typeof feature?.feature === "string" &&
+            feature.feature.toLowerCase() === selectedFeature.toLowerCase()
+        )
+      );
+
+      if (!hasFeature) {
+        setSelectedFeature(null);
+      }
+    }
+  }, [activeData, selectedFeature, selectedProduct]);
+
   const setIngestedData = (
     data: Omit<DashboardMetrics, "issues"> & { issues?: any[] },
     productName?: string
@@ -127,6 +161,8 @@ export function IngestProvider({ children }: { children: ReactNode }) {
   ) => {
     setProductsMap(newMap);
     setProductsList(newList);
+    setSelectedProduct(null);
+    setSelectedFeature(null);
     if (newList.length > 0) {
       setSelectedProductId(newList[0].id);
     }
@@ -135,12 +171,11 @@ export function IngestProvider({ children }: { children: ReactNode }) {
   const resetData = () => {
     setProductsMap({});
     setProductsList([]);
+    setSelectedProduct(null);
+    setSelectedFeature(null);
     setSelectedProductId(null);
     storage.clearAll();
   };
-
-  const activeData =
-    (selectedProductId !== null && productsMap[selectedProductId]) || defaultState;
 
   return (
     <IngestContext.Provider
@@ -148,6 +183,10 @@ export function IngestProvider({ children }: { children: ReactNode }) {
         data: activeData,
         products: productsList,
         productsMap,
+        selectedProduct,
+        selectedFeature,
+        setSelectedProduct,
+        setSelectedFeature,
         setIngestedData,
         setMultiProductData,
         resetData,

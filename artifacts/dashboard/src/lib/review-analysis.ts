@@ -23,6 +23,27 @@ interface TermSet {
   sarcasm: string[];
 }
 
+const FEATURE_PATTERNS: Array<{ feature: string; patterns: RegExp[] }> = [
+  { feature: "Battery", patterns: [/\bbattery\b/i, /\bcharging\b/i, /\bcharge\b/i, /\bmah\b/i, /\bplayback\b/i] },
+  { feature: "Camera", patterns: [/\bcamera\b/i, /\bphoto\b/i, /\bnight mode\b/i, /\bportrait\b/i, /\bvideo\b/i] },
+  { feature: "Sound", patterns: [/\bsound\b/i, /\baudio\b/i, /\bbass\b/i, /\btreble\b/i, /\bspeaker\b/i] },
+  { feature: "Build Quality", patterns: [/\bbuild quality\b/i, /\bbuild\b/i, /\bdurability\b/i, /\bhinge\b/i, /\bmaterial\b/i, /\bplastic\b/i] },
+  { feature: "Display", patterns: [/\bdisplay\b/i, /\bscreen\b/i, /\bamoled\b/i, /\bbrightness\b/i, /\bcolor\b/i, /\bresolution\b/i] },
+  { feature: "Performance", patterns: [/\bperformance\b/i, /\bprocessor\b/i, /\bcpu\b/i, /\bgpu\b/i, /\bram\b/i, /\bssd\b/i, /\blag\b/i, /\bslow\b/i] },
+  { feature: "Connectivity", patterns: [/\bbluetooth\b/i, /\bwifi\b/i, /\b5g\b/i, /\bnfc\b/i, /\bconnection\b/i, /\bpair\b/i, /\bnetwork\b/i] },
+  { feature: "Comfort & Fit", patterns: [/\bcomfort\b/i, /\bcomfortable\b/i, /\bfit\b/i, /\bear tips?\b/i, /\bwear\b/i, /\bseat\b/i] },
+  { feature: "Software", patterns: [/\bsoftware\b/i, /\bupdate\b/i, /\bbug\b/i, /\bui\b/i, /\bapp\b/i, /\bfirmware\b/i, /\bcrash\b/i] },
+  { feature: "Design", patterns: [/\bdesign\b/i, /\bcompact\b/i, /\bstylish\b/i, /\bpremium feel\b/i, /\blooks\b/i] },
+  { feature: "Value for Money", patterns: [/\bvalue for money\b/i, /\bworth\b/i, /\bprice\b/i, /\boverpriced\b/i, /\bexpensive\b/i, /\bpaisa\b/i] },
+  { feature: "Customer Service", patterns: [/\bcustomer service\b/i, /\bsupport\b/i, /\bwarranty\b/i, /\brefund\b/i, /\bservice center\b/i] },
+  { feature: "Delivery", patterns: [/\bdelivery\b/i, /\bshipping\b/i, /\barrived\b/i, /\breceived\b/i] },
+  { feature: "Packaging", patterns: [/\bpackaging\b/i, /\bbox\b/i, /\bpackage\b/i] },
+  { feature: "Mic & Call Quality", patterns: [/\bmic\b/i, /\bcall quality\b/i, /\bvoice\b/i, /\bcalling\b/i, /\bwind noise\b/i] },
+  { feature: "Water Resistance", patterns: [/\bwaterproof\b/i, /\bwater resistant\b/i, /\bipx\d+\b/i, /\bip\d+\b/i, /\brain\b/i] },
+  { feature: "Durability", patterns: [/\bdurable\b/i, /\bbroke\b/i, /\bbroken\b/i, /\bcrack\b/i, /\bdamage\b/i] },
+  { feature: "Usability", patterns: [/\beasy\b/i, /\buser[- ]?friendly\b/i, /\bsetup\b/i, /\bcontrols?\b/i, /\binterface\b/i] },
+];
+
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   hi: "Hindi",
@@ -109,6 +130,34 @@ function unique<T>(items: T[]) {
   return Array.from(new Set(items));
 }
 
+function extractExplicitFeatures(text: string): string[] {
+  const extracted = new Set<string>();
+  const pattern = /\bfeatures?\s*:\s*([^\n]+)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    const raw = match[1] ?? "";
+    const cleaned = raw
+      .split(/[|]/)
+      .flatMap((part) => part.split(/[;,]/))
+      .flatMap((part) => part.split(/\s+and\s+/i))
+      .map((part) => part.trim().replace(/[.!?]+$/g, ""))
+      .filter(Boolean);
+
+    cleaned.forEach((feature) => extracted.add(feature));
+  }
+
+  return Array.from(extracted);
+}
+
+function inferFeaturesFromText(text: string): string[] {
+  const inferred = FEATURE_PATTERNS
+    .filter(({ patterns }) => patterns.some((pattern) => pattern.test(text)))
+    .map(({ feature }) => feature);
+
+  return unique(inferred);
+}
+
 export function detectLanguages(text: string) {
   const normalized = text.toLowerCase();
   const languages: string[] = [];
@@ -169,6 +218,10 @@ export function analyzeReviewText(text: string): Pick<AnalyzedReview, "language"
     overall_sentiment = "ambiguous";
   }
 
+  const explicitFeatures = extractExplicitFeatures(text);
+  const inferredFeatures = explicitFeatures.length > 0 ? [] : inferFeaturesFromText(text);
+  const finalFeatures = explicitFeatures.length > 0 ? explicitFeatures : inferredFeatures;
+
   return {
     language: languages.join(",") || "unknown",
     languages: languages.length ? languages : ["unknown"],
@@ -177,7 +230,13 @@ export function analyzeReviewText(text: string): Pick<AnalyzedReview, "language"
     is_spam,
     is_bot,
     is_sarcastic,
-    features: [{ feature: "General Quality", sentiment: overall_sentiment, confidence: positive || negative || sarcasm ? 0.86 : 0.55 }],
+    features: finalFeatures.length > 0
+      ? finalFeatures.map((feature) => ({
+          feature,
+          sentiment: overall_sentiment,
+          confidence: explicitFeatures.length > 0 ? 0.94 : 0.78,
+        }))
+      : [{ feature: "General Quality", sentiment: overall_sentiment, confidence: positive || negative || sarcasm ? 0.86 : 0.55 }],
   };
 }
 

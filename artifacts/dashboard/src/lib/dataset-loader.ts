@@ -106,6 +106,9 @@ export async function processDataset(
         analyzedReviews = analyzedReviews.map((review, i) => {
           const or = orResults[i];
           if (!or) return review;
+          const hasExplicitFeatures = review.features.some(
+            (f) => f.feature.toLowerCase() !== 'general quality'
+          );
           return {
             ...review,
             overall_sentiment: or.overall_sentiment,
@@ -113,7 +116,9 @@ export async function processDataset(
             is_spam: or.is_spam,
             is_bot: or.is_bot,
             is_sarcastic: or.is_sarcastic,
-            features: or.features.length > 0 ? or.features : review.features,
+            features: hasExplicitFeatures
+              ? review.features
+              : (or.features.length > 0 ? or.features : review.features),
           };
         });
       } catch (error) {

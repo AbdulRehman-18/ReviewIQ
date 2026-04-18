@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useMemo } from "react";
 import { useProduct } from "@/contexts/ProductContext";
 import { useIngest } from "@/contexts/IngestContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,47 +10,117 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { FeatureSentimentChart, type FeatureData } from "@/components/dashboard/FeatureSentimentChart";
 import { RecommendationsPanel } from "@/components/dashboard/RecommendationsPanel";
 import { getLanguageLabel, buildLanguageBreakdown } from "@/lib/review-analysis";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Local fallback until shared selector module is available.
 function ProductFeatureSelector() {
-  return null;
+  const {
+    data: ingestData,
+    selectedFeature,
+    setSelectedFeature,
+    products,
+  } = useIngest();
+  const { selectedProductId, setSelectedProductId } = useProduct();
+
+  const datasetOptions = products;
+
+  const featureOptions = useMemo(() => {
+    const reviews = ingestData.reviews?.items ?? [];
+    if (reviews.length === 0) return [] as Array<{ name: string; count: number }>;
+
+    const featureCounts = new Map<string, number>();
+    reviews.forEach((review: any) => {
+      review.features?.forEach((feature: any) => {
+        const name = typeof feature?.feature === "string" ? feature.feature.trim() : "";
+        if (!name) return;
+        featureCounts.set(name, (featureCounts.get(name) ?? 0) + 1);
+      });
+    });
+
+    const sorted = Array.from(featureCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, count]) => ({ name, count }));
+
+    const hasSpecificFeatures = sorted.some((f) => f.name.toLowerCase() !== "general quality");
+    return hasSpecificFeatures
+      ? sorted.filter((f) => f.name.toLowerCase() !== "general quality")
+      : sorted;
+  }, [ingestData.reviews]);
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto">
+      <div className="space-y-1 min-w-[220px]">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Dataset</p>
+        <Select
+          value={selectedProductId !== null ? String(selectedProductId) : undefined}
+          onValueChange={(value) => {
+            const nextId = Number(value);
+            setSelectedProductId(Number.isNaN(nextId) ? null : nextId);
+            setSelectedFeature(null);
+          }}
+          disabled={datasetOptions.length === 0}
+        >
+          <SelectTrigger className="h-9 bg-background">
+            <SelectValue placeholder="Select dataset" />
+          </SelectTrigger>
+          <SelectContent>
+            {datasetOptions.map((dataset) => (
+              <SelectItem key={dataset.id} value={String(dataset.id)}>
+                {dataset.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1 min-w-[220px]">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Feature</p>
+        <Select
+          value={selectedFeature ?? "__all_features__"}
+          onValueChange={(value) => setSelectedFeature(value === "__all_features__" ? null : value)}
+          disabled={featureOptions.length === 0}
+        >
+          <SelectTrigger className="h-9 bg-background">
+            <SelectValue placeholder="All features" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all_features__">All features</SelectItem>
+            {featureOptions.map((feature) => (
+              <SelectItem key={feature.name} value={feature.name}>
+                {feature.name} ({feature.count})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: ingestData, selectedProduct, selectedFeature } = useIngest();
+  const { data: ingestData, selectedProduct, selectedFeature, products } = useIngest();
+  const { selectedProductId } = useProduct();
 
   // Get filtered data based on product and feature selection
   const filteredData = useMemo(() => {
     const productsData = ingestData.productsData;
-    
-    // If no product selected, show all data
-    if (!selectedProduct || !productsData) {
-      return {
-        reviews: ingestData.reviews?.items ?? [],
-        features: ingestData.features ?? [],
-        issues: ingestData.issues ?? [],
-        overview: ingestData.overview,
-        trends: ingestData.trends ?? [],
-      };
+    let reviews = ingestData.reviews?.items ?? [];
+
+    // If product-level groups exist and a product is selected, scope reviews to that product.
+    if (selectedProduct && productsData) {
+      const productData = productsData.get(selectedProduct);
+      reviews = productData?.reviews ?? [];
     }
     
-    // Get product-specific data
-    const productData = productsData.get(selectedProduct);
-    if (!productData) {
-      return {
-        reviews: [],
-        features: [],
-        issues: [],
-        overview: ingestData.overview,
-        trends: ingestData.trends ?? [],
-      };
-    }
-    
-    let reviews = productData.reviews;
-    
-    // If feature is selected, filter reviews further
+    // If feature is selected, filter reviews further.
     if (selectedFeature) {
       reviews = reviews.filter((r: any) =>
         r.features?.some((f: any) => f.feature.toLowerCase() === selectedFeature.toLowerCase())
@@ -58,7 +128,8 @@ export default function DashboardPage() {
     }
     
     // Calculate stats for filtered reviews
-    const total = reviews.length || 1;
+    const totalReviews = reviews.length;
+    const safeTotal = Math.max(1, totalReviews);
     const count = (pred: (r: any) => boolean) => reviews.filter(pred).length;
     
     const posCount = count((r) => r.overall_sentiment === "positive");
@@ -68,10 +139,10 @@ export default function DashboardPage() {
     const spamCount = count((r) => r.is_spam || r.is_bot);
     const dupeCount = count((r) => r.is_duplicate);
     
-    const posPercent = Math.round((posCount / total) * 100);
-    const negPercent = Math.round((negCount / total) * 100);
-    const sarcPercent = Math.round((sarcCount / total) * 100);
-    const ambPercent = Math.round((ambCount / total) * 100);
+    const posPercent = Math.round((posCount / safeTotal) * 100);
+    const negPercent = Math.round((negCount / safeTotal) * 100);
+    const sarcPercent = Math.round((sarcCount / safeTotal) * 100);
+    const ambPercent = Math.round((ambCount / safeTotal) * 100);
     const neuPercent = Math.max(0, 100 - posPercent - negPercent - sarcPercent - ambPercent);
     
     // Aggregate features from filtered reviews
@@ -122,13 +193,13 @@ export default function DashboardPage() {
         negative_pct: Math.max(0, Math.min(100, Math.round(negPercent + Math.cos(i) * 3 + v * 0.4))),
         sarcasm_pct: Math.max(0, Math.min(100, Math.round(sarcPercent + Math.sin(i * 1.5) * 2))),
         bots_pct: Math.max(0, Math.min(100, Math.round(4 + Math.cos(i * 2) * 1.5))),
-        mention_count: total,
+        mention_count: totalReviews,
       };
     });
     
     const overview = {
-      total_reviews: total,
-      valid_reviews: Math.max(0, total - spamCount - dupeCount),
+      total_reviews: totalReviews,
+      valid_reviews: Math.max(0, totalReviews - spamCount - dupeCount),
       spam_count: spamCount,
       duplicate_count: dupeCount,
       sarcastic_count: sarcCount,
@@ -153,6 +224,10 @@ export default function DashboardPage() {
   const overview = filteredData.overview;
   const activeTrends = filteredData.trends;
   const activeLangBreakdown: Record<string, number> = overview?.language_breakdown ?? {};
+  const activeDatasetName =
+    products.find((p) => p.id === selectedProductId)?.name ??
+    products[0]?.name ??
+    "Current Dataset";
 
   // Metrics row
   const metrics = [
@@ -209,13 +284,13 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">
-            {selectedProduct || selectedFeature
+            {selectedFeature
               ? `Showing data for: `
               : "Product performance and customer sentiment summary."}
-            {selectedProduct && (
-              <span className="text-primary font-medium">{selectedProduct}</span>
+            {selectedFeature && (
+              <span className="text-primary font-medium">{activeDatasetName}</span>
             )}
-            {selectedProduct && selectedFeature && <span> / </span>}
+            {selectedFeature && <span> / </span>}
             {selectedFeature && (
               <span className="text-primary font-medium">{selectedFeature}</span>
             )}
@@ -227,12 +302,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Filter context banner */}
-      {(selectedProduct || selectedFeature) && (
+      {selectedFeature && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-primary/5 border border-primary/20 text-sm flex-wrap">
           <Layers className="w-4 h-4 text-primary shrink-0" />
           <span className="font-medium text-primary">
-            {selectedProduct && `Product: ${selectedProduct}`}
-            {selectedProduct && selectedFeature && " · "}
+            {`Dataset: ${activeDatasetName}`}
+            {" · "}
             {selectedFeature && `Feature: ${selectedFeature}`}
           </span>
           <span className="text-muted-foreground">·</span>
