@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -7,14 +6,16 @@ import {
   TrendingUp,
   Upload,
   Radio,
+  BarChart2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const ANALYTICS_NAV = [
-  { title: "Dashboard",      href: "/",        icon: LayoutDashboard              },
-  { title: "Trends",         href: "/trends",  icon: TrendingUp,      },
-  { title: "Reviews Queue",  href: "/reviews", icon: MessageSquare                },
-  { title: "Compare",        href: "/compare", icon: Trophy                       },
+  { title: "Dashboard",      href: "/",           icon: LayoutDashboard },
+  { title: "Trends",         href: "/trends",     icon: TrendingUp      },
+  { title: "Reviews Queue",  href: "/reviews",    icon: MessageSquare   },
+  { title: "Compare",        href: "/compare",    icon: Trophy          },
+  { title: "Visualize",      href: "/visualize",  icon: BarChart2       },
 ] as const;
 
 const DATA_NAV = [

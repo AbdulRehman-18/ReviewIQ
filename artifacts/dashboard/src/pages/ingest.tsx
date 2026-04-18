@@ -13,7 +13,7 @@ import { analyzeReviews, buildLanguageBreakdown, extractReviewTextItems } from "
 import { analyzeWithOpenRouter } from "@/lib/openrouter-analysis";
 import { analyzeRegionalLanguages } from "@/lib/gemini-analysis";
 import { useProduct } from "@/contexts/ProductContext";
-import { parseCSV, groupByProduct, extractProducts } from "@/lib/csv-parser";
+import { parseCSV, extractProducts } from "@/lib/csv-parser";
 import { processDataset, loadAllDatasets, type DatasetInfo } from "@/lib/dataset-loader";
 
 const OR_KEY    = import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined;
@@ -288,19 +288,64 @@ export default function IngestPage() {
         if (file.name.endsWith(".csv") || file.type === "text/csv") {
           try {
             const parsed = parseCSV(text);
-            lines = parsed.reviewTexts;
-            
-            // If we have product grouping, process each product separately
-            const products = extractProducts(parsed);
-            if (products.length > 1 && products[0] !== 'All Products') {
-              const productGroups = groupByProduct(parsed);
-              
-              // Process each product as a separate dataset
-              for (const [productName, reviews] of productGroups.entries()) {
-                await processLines(reviews, productName);
-              }
+            const productList = extractProducts(parsed);
+
+            if (productList.length > 0 && productList[0] !== "All Products") {
+              // Multi-product CSV: process ALL rows together via processDataset
+              // so Total Reviews reflects the full dataset (e.g. 200, not 50).
+              setIsProcessing(true);
+              setCurrentStep("parse");
+              setProgress(5);
+
+              const dsName =
+                productName.trim() ||
+                file.name.replace(/\.csv$/i, "") ||
+                `Dataset ${products.length + 1}`;
+
+              const processed = await processDataset(text, dsName, {
+                useOpenRouter: !!OR_KEY,
+                openRouterKey: OR_KEY,
+                openRouterModel: OR_MODEL,
+                useGemini: !!GEM_KEY,
+                geminiKey: GEM_KEY,
+                onProgress: (p, s) => { setProgress(p); setCurrentStep(s); },
+              });
+
+              setIngestedData(
+                {
+                  overview: processed.overview,
+                  features: processed.features,
+                  issues: processed.issues,
+                  reviews: {
+                    items: processed.allReviews,
+                    total: processed.allReviews.length,
+                    page: 1,
+                    size: processed.allReviews.length,
+                    pages: 1,
+                  },
+                  trends: processed.trends,
+                  isDataIngested: true,
+                  productsList: processed.productsList,
+                  productsData: processed.products,
+                },
+                dsName
+              );
+
+              setProgress(100);
+              setTimeout(() => {
+                setIsProcessing(false);
+                setResult({
+                  total: processed.overview.total_reviews,
+                  positive: processed.overview.overall_sentiment.positive,
+                  negative: processed.overview.overall_sentiment.negative,
+                  sarcasm: processed.overview.overall_sentiment.sarcasm,
+                });
+              }, 400);
               return;
             }
+
+            // Single-product or no product column — fall through to processLines
+            lines = parsed.reviewTexts;
           } catch (err) {
             console.warn('CSV parsing failed, falling back to line-by-line:', err);
             lines = text.split("\n").filter((l) => l.trim());

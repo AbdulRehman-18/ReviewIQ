@@ -13,6 +13,7 @@ import TrendsPage from "@/pages/trends";
 import IngestPage from "@/pages/ingest";
 import ComparePage from "@/pages/compare";
 import ModerationPage from "@/pages/moderation";
+import VisualizePage from "@/pages/visualize";
 
 const PAGE_TRANSITION = {
   initial:    { opacity: 0, y: 8  },
@@ -36,6 +37,7 @@ function Router() {
             <Route path="/ingest"     component={IngestPage}     />
             <Route path="/compare"    component={ComparePage}    />
             <Route path="/moderation" component={ModerationPage} />
+            <Route path="/visualize"  component={VisualizePage}  />
             <Route component={NotFound} />
           </Switch>
         </motion.div>
