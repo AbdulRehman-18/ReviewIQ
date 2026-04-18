@@ -12,14 +12,14 @@ import { Badge } from "@/components/ui/badge";
 
 const ANALYTICS_NAV = [
   { title: "Dashboard",      href: "/",        icon: LayoutDashboard              },
-  { title: "Trends",         href: "/trends",  icon: TrendingUp, badge: "3"       },
+  { title: "Trends",         href: "/trends",  icon: TrendingUp,      },
   { title: "Reviews Queue",  href: "/reviews", icon: MessageSquare                },
   { title: "Compare",        href: "/compare", icon: Trophy                       },
 ] as const;
 
 const DATA_NAV = [
   { title: "Ingestion",  href: "/ingest", icon: Upload, live: false },
-  { title: "Live Demo",  href: "/ingest", icon: Radio,  live: true  },
+  { title: "Moderation", href: "/moderation", icon: Radio,},
 ] as const;
 
 export function Sidebar() {
@@ -97,19 +97,6 @@ export function Sidebar() {
             {DATA_NAV.map(item => (
               <NavItem key={item.title} {...item} />
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── User Footer ── */}
-      <div className="px-3 py-3 border-t border-border/50 shrink-0">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
-          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-            <span className="text-[11px] font-bold text-primary">JD</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold leading-tight truncate">Jane Doe</p>
-            <p className="text-[11px] text-muted-foreground leading-tight">Product Analyst</p>
           </div>
         </div>
       </div>

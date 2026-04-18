@@ -42,20 +42,9 @@ export function Topbar() {
 
   // Sync with actual <html> class on mount
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
+
   }, []);
 
-  function toggleTheme() {
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.remove("dark");
-      html.classList.add("light");
-    } else {
-      html.classList.remove("light");
-      html.classList.add("dark");
-    }
-    setIsDark(!isDark);
-  }
 
   function handleExport() {
     setExported(true);
@@ -104,16 +93,6 @@ export function Topbar() {
           Jan 1, 2025 – {getToday()}
         </div>
 
-        {/* Theme toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-        >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
 
         {/* Export */}
         <Button

@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import { Product } from "@workspace/api-client-react/src/generated/api.schemas";
 
 interface ProductContextType {
   selectedProductId: number | null;
