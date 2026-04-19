@@ -1,4 +1,4 @@
-# Modern Dashboard UI
+# reviewIQ
 
 This workspace is configured to deploy the frontend app at `artifacts/dashboard` on Vercel.
 
