@@ -3,7 +3,7 @@
 
 This workspace is configured to deploy the frontend app at `artifacts/dashboard` on Vercel.
 
-## Vercel Deployment
+## Vercel Deployment 
 
 The repository includes a root `vercel.json` with:
 
